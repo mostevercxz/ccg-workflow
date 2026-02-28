@@ -16,6 +16,7 @@ $ARGUMENTS
 - **止损机制**：当前阶段输出通过验证前，不进入下一阶段
 - **仅规划**：本命令允许读取上下文与写入 `.claude/plan/*` 计划文件，但**禁止修改产品代码**
 - **回合制收敛**：规划按 Round 迭代（A 设计 → 用户确认 → B 审查 → A 修订）直到收敛
+- **强制任务拆分**：每轮与最终计划都必须输出“子任务清单 + 文件边界 + 验收标准”，禁止仅给高层描述
 - **原始输入保护**：用户最原始输入必须逐字保留到 `meta.json`，禁止改写和覆盖
 
 ---
@@ -204,6 +205,41 @@ TaskOutput({ task_id: "<task_id>", block: true, timeout: 600000 })
 6. **落盘产物**：
    - 允许在 `artifacts/` 下生成架构图、接口草案、目录结构文档等多文件产物
 
+#### 2.2.1 结构化输出要求（强制）
+
+每轮 `summary.md` 必须包含以下结构（缺一不可）：
+
+```markdown
+## 子任务清单（Task Breakdown）
+
+### Task 1: <名称>
+- **类型**: 前端/后端/全栈
+- **文件范围**: <精确文件路径列表>
+- **依赖**: 无 / Task N
+- **实施步骤**:
+  1. <具体步骤>
+  2. <具体步骤>
+- **验收标准**:
+  - [ ] <可验证条件 1>
+  - [ ] <可验证条件 2>
+
+### Task 2: <名称>
+...
+
+## 文件冲突检查
+✅ 无冲突 / ⚠️ 已通过依赖关系解决
+
+## 并行分组（可选）
+- Layer 1 (并行): Task 1, Task 2
+- Layer 2 (依赖 Layer 1): Task 3
+```
+
+硬性约束：
+- 子任务必须可执行、可验收，禁止“空泛描述型任务”
+- 文件范围必须明确到文件路径（必要时到函数/区块）
+- 若文件范围重叠，必须显式声明依赖顺序或合并任务
+- 每个子任务必须有至少 1 条可验证验收标准
+
 #### 2.3 收敛判定（必须显式检查）
 
 满足以下条件才可结束规划：
@@ -211,6 +247,7 @@ TaskOutput({ task_id: "<task_id>", block: true, timeout: 600000 })
 - `blocker/high` 问题为 0
 - `questions.md` 中待确认问题为 0
 - 关键约束均已决策（记录在 `final/decisions.md`）
+- `summary.md` 与 `final-plan.md` 均包含完整“子任务清单 + 文件边界 + 验收标准”结构
 
 若未收敛：
 - `last_round += 1`
@@ -227,6 +264,7 @@ TaskOutput({ task_id: "<task_id>", block: true, timeout: 600000 })
 收敛后必须执行：
 
 1. 生成 `final/final-plan.md`（最终可执行计划）
+   - **必须包含**：子任务清单、文件边界、实施步骤、验收标准、依赖关系、风险与缓解
 2. 生成 `final/decisions.md`（关键决策）
 3. 生成 `final/unresolved.md`（遗留风险，若为空也要写“无”）
 4. 更新 `meta.json`：`status=approved`、`updated_at`、`last_round`
@@ -264,6 +302,7 @@ TaskOutput({ task_id: "<task_id>", block: true, timeout: 600000 })
 
 1. **仅规划不实施** – 本命令不执行任何代码变更
 2. **回合制收敛** – A/B + 用户确认必须形成闭环，不能只跑单轮
-3. **信任规则** – 后端以 Codex 为准，前端以 Gemini 为准
-4. **外部模型零写入** – 文件修改与落盘由 Claude 执行
-5. **SESSION_ID 交接** – final 计划必须包含 `CODEX_SESSION` / `GEMINI_SESSION`（供 `/ccg:execute resume <SESSION_ID>` 使用）
+3. **强制拆分输出** – 每轮与最终计划必须包含“子任务清单 + 文件边界 + 验收标准”
+4. **信任规则** – 后端以 Codex 为准，前端以 Gemini 为准
+5. **外部模型零写入** – 文件修改与落盘由 Claude 执行
+6. **SESSION_ID 交接** – final 计划必须包含 `CODEX_SESSION` / `GEMINI_SESSION`（供 `/ccg:execute resume <SESSION_ID>` 使用）
