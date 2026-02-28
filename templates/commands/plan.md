@@ -93,7 +93,7 @@ $ARGUMENTS
 
 ```
 Bash({
-  command: "~/.claude/bin/codeagent-wrapper {{LITE_MODE_FLAG}}--backend <claude|codex> - \"{{WORKDIR}}\" <<'EOF'
+  command: "~/.claude/bin/codeagent-wrapper {{LITE_MODE_FLAG}}--backend <claude|codex|gemini> {{GEMINI_MODEL_FLAG}}- \"{{WORKDIR}}\" <<'EOF'
 ROLE_FILE: <角色提示词路径>
 <TASK>
 需求：<增强后的需求>
@@ -111,16 +111,16 @@ EOF",
 ```
 
 **模型参数说明**：
-- 本流程不使用 `--gemini-model`，仅使用 `claude` 与 `codex` 后端
+- `{{GEMINI_MODEL_FLAG}}`：当使用 `--backend gemini` 时，替换为 `--gemini-model gemini-3.1-pro-preview `（注意末尾空格）；使用 `claude/codex` 时替换为空字符串
 
 **角色提示词**：
 
-| 阶段 | Claude | Codex |
-|------|--------|-------|
-| 分析 | `~/.claude/.ccg/prompts/claude/analyzer.md` | `~/.claude/.ccg/prompts/codex/analyzer.md` |
-| 规划 | `~/.claude/.ccg/prompts/claude/architect.md` | `~/.claude/.ccg/prompts/codex/architect.md` |
+| 阶段 | Claude | Codex | Gemini |
+|------|--------|-------|--------|
+| 分析 | `~/.claude/.ccg/prompts/claude/analyzer.md` | `~/.claude/.ccg/prompts/codex/analyzer.md` | `~/.claude/.ccg/prompts/gemini/analyzer.md` |
+| 规划 | `~/.claude/.ccg/prompts/claude/architect.md` | `~/.claude/.ccg/prompts/codex/architect.md` | `~/.claude/.ccg/prompts/gemini/architect.md` |
 
-**会话复用**：每次调用返回 `SESSION_ID: xxx`（通常由 wrapper 输出），**必须保存**供后续轮次与 `/ccg:execute` 使用；最终计划需明确记录 `CLAUDE_SESSION` 与 `CODEX_SESSION`。
+**会话复用**：每次调用返回 `SESSION_ID: xxx`（通常由 wrapper 输出），**必须保存**供后续轮次与 `/ccg:execute` 使用；最终计划需按实际使用模型记录对应 SESSION（如 `CLAUDE_SESSION` / `CODEX_SESSION` / `GEMINI_SESSION`）。
 
 **等待后台任务**（最大超时 600000ms = 10 分钟）：
 
@@ -174,8 +174,8 @@ TaskOutput({ task_id: "<task_id>", block: true, timeout: 600000 })
 #### 2.1 角色分配（默认规则）
 
 - **后端主导任务**：A=Claude，B=Codex
-- **前端主导任务**：A=Claude，B=Codex
-- **全栈任务**：按模块拆分后分别应用同样规则（统一 A=Claude，B=Codex）
+- **前端主导任务**：A=Gemini，B=Codex
+- **全栈任务**：按模块拆分后分别应用同样规则（前端模块 A=Gemini，后端模块 A=Claude，统一 B=Codex）
 
 #### 2.2 每一轮固定步骤（Round N）
 
@@ -303,6 +303,6 @@ TaskOutput({ task_id: "<task_id>", block: true, timeout: 600000 })
 1. **仅规划不实施** – 本命令不执行任何代码变更
 2. **回合制收敛** – A/B + 用户确认必须形成闭环，不能只跑单轮
 3. **强制拆分输出** – 每轮与最终计划必须包含“子任务清单 + 文件边界 + 验收标准”
-4. **信任规则** – 审查结论以 Codex 为主，Claude 负责规划整合与落盘
+4. **信任规则** – 审查结论以 Codex 为主；前端规划可优先采纳 Gemini，后端规划由 Claude 主导整合
 5. **外部模型零写入** – 文件修改与落盘由 Claude 执行
-6. **SESSION_ID 交接** – final 计划必须包含 `CLAUDE_SESSION` / `CODEX_SESSION`（供 `/ccg:execute resume <SESSION_ID>` 使用）
+6. **SESSION_ID 交接** – final 计划必须包含实际使用模型的会话标识（如 `CLAUDE_SESSION` / `CODEX_SESSION` / `GEMINI_SESSION`，供 `/ccg:execute resume <SESSION_ID>` 使用）
