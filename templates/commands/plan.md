@@ -11,7 +11,7 @@ $ARGUMENTS
 ## 核心协议
 
 - **语言协议**：与工具/模型交互用**英语**，与用户交互用**中文**
-- **强制并行**：A/B 双模型调用必须使用 `run_in_background: true`（包含单模型调用，避免阻塞主线程）
+- **强制并行**：Codex/Gemini 调用必须使用 `run_in_background: true`（包含单模型调用，避免阻塞主线程）
 - **代码主权**：外部模型对文件系统**零写入权限**，所有修改由 Claude 执行
 - **止损机制**：当前阶段输出通过验证前，不进入下一阶段
 - **仅规划**：本命令允许读取上下文与写入 `.claude/plan/*` 计划文件，但**禁止修改产品代码**
@@ -120,7 +120,7 @@ EOF",
 | 分析 | `~/.claude/.ccg/prompts/claude/analyzer.md` | `~/.claude/.ccg/prompts/codex/analyzer.md` | `~/.claude/.ccg/prompts/gemini/analyzer.md` |
 | 规划 | `~/.claude/.ccg/prompts/claude/architect.md` | `~/.claude/.ccg/prompts/codex/architect.md` | `~/.claude/.ccg/prompts/gemini/architect.md` |
 
-**会话复用**：每次调用返回 `SESSION_ID: xxx`（通常由 wrapper 输出），**必须保存**供后续轮次与 `/ccg:execute` 使用；最终计划需按实际使用模型记录对应 SESSION（如 `CLAUDE_SESSION` / `CODEX_SESSION` / `GEMINI_SESSION`）。
+**会话复用**：每次调用返回 `SESSION_ID: xxx`（通常由 wrapper 输出），**必须保存**供后续轮次与 `/ccg:execute` 使用。
 
 **等待后台任务**（最大超时 600000ms = 10 分钟）：
 
@@ -175,7 +175,7 @@ TaskOutput({ task_id: "<task_id>", block: true, timeout: 600000 })
 
 - **后端主导任务**：A=Claude，B=Codex
 - **前端主导任务**：A=Gemini，B=Codex
-- **全栈任务**：按模块拆分后分别应用同样规则（前端模块 A=Gemini，后端模块 A=Claude，统一 B=Codex）
+- **全栈任务**：按模块拆分后分别应用同样规则
 
 #### 2.2 每一轮固定步骤（Round N）
 
@@ -303,6 +303,6 @@ TaskOutput({ task_id: "<task_id>", block: true, timeout: 600000 })
 1. **仅规划不实施** – 本命令不执行任何代码变更
 2. **回合制收敛** – A/B + 用户确认必须形成闭环，不能只跑单轮
 3. **强制拆分输出** – 每轮与最终计划必须包含“子任务清单 + 文件边界 + 验收标准”
-4. **信任规则** – 审查结论以 Codex 为主；前端规划可优先采纳 Gemini，后端规划由 Claude 主导整合
+4. **信任规则** – 后端以 Codex 为准，前端以 Gemini 为准
 5. **外部模型零写入** – 文件修改与落盘由 Claude 执行
-6. **SESSION_ID 交接** – final 计划必须包含实际使用模型的会话标识（如 `CLAUDE_SESSION` / `CODEX_SESSION` / `GEMINI_SESSION`，供 `/ccg:execute resume <SESSION_ID>` 使用）
+6. **SESSION_ID 交接** – final 计划必须包含 `CODEX_SESSION` / `GEMINI_SESSION`（供 `/ccg:execute resume <SESSION_ID>` 使用）
