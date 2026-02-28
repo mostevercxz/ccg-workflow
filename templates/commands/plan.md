@@ -178,17 +178,30 @@ TaskOutput({ task_id: "<task_id>", block: true, timeout: 600000 })
 
 #### 2.2 每一轮固定步骤（Round N）
 
+**回合与窗口规则（防无限循环）**：
+- 每个 Round 只允许：
+  - **1 次确认窗口**（处理 `questions.md`）
+  - **1 次裁决窗口**（处理 `issues.md`）
+- **一次窗口可批量处理多个问题**（例如 `Q1..Qn` / `I1..Im`）
+- A 在本轮末输出 `vN.1` 并落盘后，**本轮必须立即结束**
+- 若 `vN.1` 产生新待确认问题或新分歧，**强制进入 Round N+1**，禁止留在本轮继续开新窗口
+
 1. **A 产出方案草案**（author）：
    - 输出 `summary.md`（方案正文）
    - 输出 `questions.md`（需要用户确认的问题，必须编号）
-2. **用户确认问题**：
+2. **用户确认问题（确认窗口）**：
+   - 一次性批量回复 `Q1..Qn`
    - 将用户答复写入 `round-N/changelog.md` 或 `final/decisions.md`（若是全局决策）
 3. **B 交叉审查**（reviewer）：
    - 输出 `issues.md`（问题清单，含严重级别：blocker/high/medium/low）
-4. **A 基于 B + 用户反馈修订**：
+4. **用户裁决 issues（裁决窗口）**：
+   - 一次性批量裁决 `I1..Im`（accepted/rejected/deferred）
+   - 将裁决结果写入 `round-N/changelog.md`
+5. **A 基于 B + 用户反馈修订**：
    - 更新 `summary.md`
    - 在 `changelog.md` 明确“已修复/暂不采纳/待确认”
-5. **落盘产物**：
+   - 输出本轮收敛稿 `vN.1`
+6. **落盘产物**：
    - 允许在 `artifacts/` 下生成架构图、接口草案、目录结构文档等多文件产物
 
 #### 2.3 收敛判定（必须显式检查）
